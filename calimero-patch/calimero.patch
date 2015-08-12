@@ -1,0 +1,44 @@
+diff --git a/src/tuwien/auto/calimero/mgmt/ManagementClient.java b/src/tuwien/auto/calimero/mgmt/ManagementClient.java
+index 14ad615..18a2964 100644
+--- a/src/tuwien/auto/calimero/mgmt/ManagementClient.java
++++ b/src/tuwien/auto/calimero/mgmt/ManagementClient.java
+@@ -513,6 +513,9 @@ public interface ManagementClient
+ 	void writeMemory(Destination dst, int startAddr, byte[] data) throws KNXException,
+ 		InterruptedException;
+ 
++	byte[] sendUpdateData(final Destination dst, final int cmd, final byte[] data)
++			throws KNXDisconnectException, KNXTimeoutException, KNXRemoteException,
++			KNXLinkClosedException, InterruptedException;
+ 	/**
+ 	 * Authorizes at a communication partner using an authorization key to obtain a
+ 	 * certain access level.
+diff --git a/src/tuwien/auto/calimero/mgmt/ManagementClientImpl.java b/src/tuwien/auto/calimero/mgmt/ManagementClientImpl.java
+index 72cc120..2475435 100644
+--- a/src/tuwien/auto/calimero/mgmt/ManagementClientImpl.java
++++ b/src/tuwien/auto/calimero/mgmt/ManagementClientImpl.java
+@@ -664,6 +664,25 @@ public class ManagementClientImpl implements ManagementClient
+ 			tl.sendData(dst, priority, send);
+ 	}
+ 
++	public byte[] sendUpdateData(final Destination dst, final int cmd, final byte[] data)
++			throws KNXDisconnectException, KNXTimeoutException, KNXRemoteException,
++			KNXLinkClosedException, InterruptedException
++		{
++			final byte[] asdu = new byte[data.length + 3];
++			asdu[0] = (byte) data.length;
++			asdu[1] = 0;
++			asdu[2] = (byte) cmd;
++			for (int i = 0; i < data.length; ++i)
++				asdu[3 + i] = data[i];
++			if (dst.isConnectionOriented())
++				tl.connect(dst);
++			else
++				logger.error("write memory in connectionless mode, " + dst.toString());
++			final byte[] send = DataUnitBuilder.createLengthOptimizedAPDU(MEMORY_WRITE, asdu);
++			final byte[] apdu = sendWait(dst, priority, send, MEMORY_RESPONSE, 0, 65);
++			return apdu;
++		}
++
+ 	/* (non-Javadoc)
+ 	 * @see tuwien.auto.calimero.mgmt.ManagementClient#authorize
+ 	 * (tuwien.auto.calimero.mgmt.Destination, byte[])
