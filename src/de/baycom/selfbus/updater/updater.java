@@ -130,7 +130,7 @@ public class updater implements Runnable {
 	 *             on interrupted thread
 	 */
 	private KNXNetworkLink createLink() throws KNXException,
-	InterruptedException {
+			InterruptedException {
 		final KNXMediumSettings medium = (KNXMediumSettings) options
 				.get("medium");
 		if (options.containsKey("serial")) {
@@ -228,7 +228,19 @@ public class updater implements Runnable {
 				options.put("appVersionPtr", Integer.decode(args[++i]));
 			else if (isOption(arg, "-fileName", "-f"))
 				options.put("fileName", args[++i]);
-			else
+			else if (isOption(arg, "-uid", "-u")) {
+				String str = args[++i];
+				String[] tokens = str.split(":");
+
+				if (tokens.length == 12) {
+					byte uid[] = new byte[12];
+					for (int n = 0; n < tokens.length; n++) {
+						uid[n] = (byte) Integer.parseUnsignedInt(tokens[n], 16);
+					}
+					options.put("uid", uid);
+				}
+
+			} else
 				throw new KNXIllegalArgumentException("unknown option " + arg);
 		}
 		if (options.containsKey("host") == options.containsKey("serial"))
@@ -241,8 +253,8 @@ public class updater implements Runnable {
 		final int p = port != null ? port.intValue() : 0;
 		try {
 			return host != null ? new InetSocketAddress(host, p)
-			: p != 0 ? new InetSocketAddress(
-					InetAddress.getLocalHost(), p) : null;
+					: p != 0 ? new InetSocketAddress(
+							InetAddress.getLocalHost(), p) : null;
 		} catch (final UnknownHostException e) {
 			throw new KNXIllegalArgumentException("failed to get local host "
 					+ e.getMessage(), e);
@@ -286,36 +298,47 @@ public class updater implements Runnable {
 
 	private static void showUsage() {
 		final StringBuffer sb = new StringBuffer();
-		sb.append("usage: ").append(tool)
-		.append(" [options] <host|port> -fileName <filename.bin> -device <KNX device address>")
-		.append(sep);
+		sb.append("usage: ")
+				.append(tool)
+				.append(" [options] <host|port> -fileName <filename.bin> -device <KNX device address>")
+				.append(sep);
 		sb.append("options:").append(sep);
 		sb.append(" -help -h                show this help message")
-		.append(sep);
+				.append(sep);
 		sb.append(" -version                show tool/library version and exit")
-		.append(sep);
+				.append(sep);
 		sb.append(" -verbose -v             enable verbose status output")
-		.append(sep);
+				.append(sep);
 		sb.append(" -localhost <id>         local IP/host name").append(sep);
 		sb.append(
 				" -localport <number>     local UDP port (default system assigned)")
 				.append(sep);
 		sb.append(" -port -p <number>       UDP port on <host> (default ")
-		.append(KNXnetIPConnection.DEFAULT_PORT).append(")")
-		.append(sep);
+				.append(KNXnetIPConnection.DEFAULT_PORT).append(")")
+				.append(sep);
 		// sb.append(" -host <id>              remote IP/host name").append(sep);
 		sb.append(" -nat -n                 enable Network Address Translation")
-		.append(sep);
+				.append(sep);
 		sb.append(" -serial -s              use FT1.2 serial communication")
-		.append(sep);
+				.append(sep);
 		sb.append(" -routing                use KNXnet/IP routing").append(sep);
 		sb.append(
 				" -medium -m <id>         KNX medium [tp0|tp1|p110|p132|rf] "
 						+ "(default tp1)").append(sep);
-		sb.append(" -progDevice -p          KNX device address used for programming (default 15.15.192)").append(sep);
-		sb.append(" -device <knxid>        KNX device address in normal operating mode (default none)").append(sep);
-		sb.append(" -startAddress <hex/dec> start address in flash memory of selfbus device").append(sep);
-		sb.append(" -appVersionPtr <hex/dev> pointer to APP_VERSION string").append(sep);
+		sb.append(
+				" -progDevice -p           KNX device address used for programming (default 15.15.192)")
+				.append(sep);
+		sb.append(
+				" -device <knxid>          KNX device address in normal operating mode (default none)")
+				.append(sep);
+		sb.append(
+				" -startAddress <hex/dec>  start address in flash memory of selfbus device")
+				.append(sep);
+		sb.append(" -appVersionPtr <hex/dev> pointer to APP_VERSION string")
+				.append(sep);
+		sb.append(
+				" -uid <hex>               send UID to unlock (default: request UID to unlock)")
+				.append(sep);
 		out.log(LogLevel.ALWAYS, sb.toString(), null);
 	}
 
@@ -482,14 +505,15 @@ public class updater implements Runnable {
 
 		try {
 			ManagementClient mc;
-			Destination d;
 			Destination pd;
 			String fName = "";
 			int appVersionAddr = 0;
 			int startAddress = 0x2000;
 			IndividualAddress progDevice = new IndividualAddress(15, 15, 192);
 			IndividualAddress device = null;
-			
+			byte uid[] = null;
+			byte result[] = null;
+
 			if (options.containsKey("fileName")) {
 				fName = (String) options.get("fileName");
 			}
@@ -506,36 +530,49 @@ public class updater implements Runnable {
 			if (options.containsKey("device")) {
 				device = (IndividualAddress) options.get("device");
 			}
+			if (options.containsKey("uid")) {
+				uid = (byte[]) options.get("uid");
+			}
 
 			link = createLink();
 			mc = new ManagementClientImpl(link);
 			pd = mc.createDestination(progDevice, true);
 
 			if (device != null) {
+				Destination d;
 				d = mc.createDestination(device, true);
 				System.out.println("Restart device in programming mode...");
 				mc.restart(d, 0, 255);
 			}
 
-			byte[] data = new byte[12];
-			System.out.print("Request UID... ");
-			byte[] result = mc.sendUpdateData(pd, UPD_REQUEST_UID, new byte[0]);
-			if (result.length == 16) {
-				System.out.print("got:");
-				for (int i = 0; i < result.length - 4; i++) {
-					System.out.print(String.format(" %02X",
-							result[i + 4] & 0xff));
+			byte data[] = new byte[12];
+
+			if (uid == null) {
+				System.out.print("Request UID... ");
+				result = mc.sendUpdateData(pd, UPD_REQUEST_UID, new byte[0]);
+				if (result.length == 16) {
+					System.out.print("got: ");
+					for (int i = 0; i < result.length - 4; i++) {
+						if (i != 0) {
+							System.out.print(":");
+						}
+						System.out.print(String.format("%02X",
+								result[i + 4] & 0xff));
+					}
+					System.out.println();
+					uid = new byte[12];
+					for (int i = 0; i < result.length - 4; i++) {
+						uid[i] = result[i + 4];
+					}
+				} else {
+					System.out.println("Reqest UID failed");
+					mc.restart(pd);
+					throw new RuntimeException("Selfbus udpate failed.");
 				}
-				System.out.println();
-			} else {
-				System.out.println("Reqest UID failed");
 			}
 
 			System.out.print("Unlock device... ");
-			for (int i = 0; i < result.length - 4; i++) {
-				data[i] = result[i + 4];
-			}
-			result = mc.sendUpdateData(pd, UPD_UNLOCK_DEVICE, data);
+			result = mc.sendUpdateData(pd, UPD_UNLOCK_DEVICE, uid);
 			if (checkResult(result) != 0) {
 				mc.restart(pd);
 				throw new RuntimeException("Selfbus udpate failed.");
@@ -566,7 +603,8 @@ public class updater implements Runnable {
 			int progAddress = startAddress;
 			boolean doProg = false;
 			if (true) {
-				System.out.print("Sending application data ("+totalLength+" bytes) ");
+				System.out.println("Sending application data (" + totalLength
+						+ " bytes) ");
 				while ((nRead = fis.read(buf)) != -1) {
 					int txSize;
 					int nDone = 0;
@@ -607,11 +645,11 @@ public class updater implements Runnable {
 							integerToStream(progPars, 8, (int) crc);
 							System.out.println();
 							System.out
-							.print("Program device at flash address 0x"
-									+ Integer.toHexString(progAddress)
-									+ " with " + progSize
-									+ " bytes and CRC32 0x"
-									+ Long.toHexString(crc) + " ... ");
+									.print("Program device at flash address 0x"
+											+ Integer.toHexString(progAddress)
+											+ " with " + progSize
+											+ " bytes and CRC32 0x"
+											+ Long.toHexString(crc) + " ... ");
 							result = mc.sendUpdateData(pd, UPD_PROGRAM,
 									progPars);
 							if (checkResult(result) != 0) {
@@ -645,14 +683,14 @@ public class updater implements Runnable {
 			integerToStream(bootDescriptor, 8, (int) crc32File.getValue());
 			integerToStream(bootDescriptor, 12, appVersionAddr);
 			System.out
-			.println("Preparing boot descriptor with start address 0x"
-					+ Integer.toHexString(startAddress)
-					+ " end address 0x"
-					+ Integer.toHexString(endAddress)
-					+ " with CRC32 0x"
-					+ Long.toHexString(crc32File.getValue())
-					+ " APP_VERSION pointer 0x"
-					+ Long.toHexString(appVersionAddr) + " ... ");
+					.println("Preparing boot descriptor with start address 0x"
+							+ Integer.toHexString(startAddress)
+							+ " end address 0x"
+							+ Integer.toHexString(endAddress)
+							+ " with CRC32 0x"
+							+ Long.toHexString(crc32File.getValue())
+							+ " APP_VERSION pointer 0x"
+							+ Long.toHexString(appVersionAddr) + " ... ");
 
 			int nDone = 0;
 			while (nDone < bootDescriptor.length) {
