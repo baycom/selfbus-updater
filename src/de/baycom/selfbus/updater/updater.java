@@ -721,6 +721,7 @@ public class updater implements Runnable {
 			byte programBootDescriptor[] = new byte[5];
 			integerToStream(programBootDescriptor, 0,
 					(int) crc32Block.getValue());
+			System.out.println();
 			System.out.print("Update boot descriptor ... ");
 			result = mc.sendUpdateData(pd, UPD_UPDATE_BOOT_DESC,
 					programBootDescriptor);
