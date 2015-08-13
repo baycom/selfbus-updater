@@ -52,7 +52,7 @@ import tuwien.auto.calimero.mgmt.ManagementClientImpl;
  * @author Deti Fliegl
  */
 public class updater implements Runnable {
-	private static final String tool = "Selfbus Updater";
+	private static final String tool = "Selfbus Updater 0.1";
 	private static final String sep = System.getProperty("line.separator");
 
 	private static LogService out = LogManager.getManager().getLogService(
@@ -298,32 +298,32 @@ public class updater implements Runnable {
 
 	private static void showUsage() {
 		final StringBuffer sb = new StringBuffer();
-		sb.append("usage: ")
-				.append(tool)
+		sb.append(tool).append(sep).append(sep);
+		sb.append("usage: selfbus-updater.jar")
 				.append(" [options] <host|port> -fileName <filename.bin> -device <KNX device address>")
-				.append(sep);
+				.append(sep).append(sep);
 		sb.append("options:").append(sep);
-		sb.append(" -help -h                show this help message")
+		sb.append(" -help -h                 show this help message")
 				.append(sep);
-		sb.append(" -version                show tool/library version and exit")
+		sb.append(" -version                 show tool/library version and exit")
 				.append(sep);
-		sb.append(" -verbose -v             enable verbose status output")
+		sb.append(" -verbose -v              enable verbose status output")
 				.append(sep);
-		sb.append(" -localhost <id>         local IP/host name").append(sep);
+		sb.append(" -localhost <id>          local IP/host name").append(sep);
 		sb.append(
-				" -localport <number>     local UDP port (default system assigned)")
+				" -localport <number>      local UDP port (default system assigned)")
 				.append(sep);
-		sb.append(" -port -p <number>       UDP port on <host> (default ")
+		sb.append(" -port -p <number>        UDP port on <host> (default ")
 				.append(KNXnetIPConnection.DEFAULT_PORT).append(")")
 				.append(sep);
 		// sb.append(" -host <id>              remote IP/host name").append(sep);
-		sb.append(" -nat -n                 enable Network Address Translation")
+		sb.append(" -nat -n                  enable Network Address Translation")
 				.append(sep);
-		sb.append(" -serial -s              use FT1.2 serial communication")
+		sb.append(" -serial -s               use FT1.2 serial communication")
 				.append(sep);
-		sb.append(" -routing                use KNXnet/IP routing").append(sep);
+		sb.append(" -routing                 use KNXnet/IP routing").append(sep);
 		sb.append(
-				" -medium -m <id>         KNX medium [tp0|tp1|p110|p132|rf] "
+				" -medium -m <id>          KNX medium [tp0|tp1|p110|p132|rf] "
 						+ "(default tp1)").append(sep);
 		sb.append(
 				" -progDevice -p           KNX device address used for programming (default 15.15.192)")
@@ -483,7 +483,7 @@ public class updater implements Runnable {
 		// ??? as with the other tools, maybe put this into the try block to
 		// also call onCompletion
 		if (options.isEmpty()) {
-			out.log(LogLevel.ALWAYS, "A tool for updating Selfbus devices",
+			out.log(LogLevel.ALWAYS, tool,
 					null);
 			showVersion();
 			out.log(LogLevel.ALWAYS, "type -help for help message", null);
@@ -703,10 +703,8 @@ public class updater implements Runnable {
 				for (int i = 0; i < txSize; i++) {
 					txBuf[i] = bootDescriptor[nDone + i];
 				}
-				System.out.print("Send " + txSize + " bytes to RAM 0x"
-						+ Integer.toHexString(nDone) + " ... ");
 				result = mc.sendUpdateData(pd, UPD_SEND_DATA, txBuf);
-				if (checkResult(result) != 0) {
+				if (checkResult(result, false) != 0) {
 					mc.restart(pd);
 					throw new RuntimeException("Selfbus udpate failed.");
 				}
