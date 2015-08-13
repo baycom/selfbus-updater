@@ -25,5 +25,5 @@
 To be used like this:
 
 
-java -jar selfbus-updater.jar -nat <ip address of KNX/IP GW> -fileName "in16-bim112.bin" -appVersionPtr 0x3263 -startAddress 0x2000 -uid 05:B0:01:02:E9:80:AC:AE:E9:07:47:55
+	java -jar selfbus-updater.jar -nat <ip address of KNX/IP GW> -fileName "in16-bim112.bin" -appVersionPtr 0x3263 -startAddress 0x2000 -uid 05:B0:01:02:E9:80:AC:AE:E9:07:47:55
 
