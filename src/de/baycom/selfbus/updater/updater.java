@@ -208,16 +208,16 @@ public class updater implements Runnable {
 			else if (!options.containsKey("host"))
 				// otherwise add a host key with argument as host
 				parseHost(arg, false, options);
-			else if (isOption(arg, "-progDevice", "-p")) {
+			else if (isOption(arg, "-progDevice", "-D")) {
 				try {
-					options.put("progDevice", new IndividualAddress(arg));
+					options.put("progDevice", new IndividualAddress(args[++i]));
 				} catch (final KNXFormatException e) {
 					throw new KNXIllegalArgumentException("KNX device "
 							+ e.toString(), e);
 				}
-			} else if (isOption(arg, "-device", "-p")) {
+			} else if (isOption(arg, "-device", "-d")) {
 				try {
-					options.put("device", new IndividualAddress(arg));
+					options.put("device", new IndividualAddress(args[++i]));
 				} catch (final KNXFormatException e) {
 					throw new KNXIllegalArgumentException("KNX device "
 							+ e.toString(), e);
@@ -326,7 +326,7 @@ public class updater implements Runnable {
 				" -medium -m <id>          KNX medium [tp0|tp1|p110|p132|rf] "
 						+ "(default tp1)").append(sep);
 		sb.append(
-				" -progDevice -p           KNX device address used for programming (default 15.15.192)")
+				" -progDevice              KNX device address used for programming (default 15.15.192)")
 				.append(sep);
 		sb.append(
 				" -device <knxid>          KNX device address in normal operating mode (default none)")
@@ -542,7 +542,11 @@ public class updater implements Runnable {
 				Destination d;
 				d = mc.createDestination(device, true);
 				System.out.println("Restart device in programming mode...");
-				mc.restart(d, 0, 255);
+				try {
+					mc.restart(d, 0, 255);
+				} catch (final KNXException e) {
+				}
+				Thread.sleep(1000);
 			}
 
 			byte data[] = new byte[12];
