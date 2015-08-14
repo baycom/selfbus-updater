@@ -52,7 +52,7 @@ import tuwien.auto.calimero.mgmt.ManagementClientImpl;
  * @author Deti Fliegl
  */
 public class updater implements Runnable {
-	private static final String tool = "Selfbus Updater 0.1";
+	private static final String tool = "Selfbus Updater 0.2";
 	private static final String sep = System.getProperty("line.separator");
 
 	private static LogService out = LogManager.getManager().getLogService(
@@ -549,8 +549,6 @@ public class updater implements Runnable {
 				Thread.sleep(1000);
 			}
 
-			byte data[] = new byte[12];
-
 			if (uid == null) {
 				System.out.print("Request UID... ");
 				result = mc.sendUpdateData(pd, UPD_REQUEST_UID, new byte[0]);
@@ -680,7 +678,7 @@ public class updater implements Runnable {
 			fis.close();
 			crc32File.update(buffer, 0, totalLength);
 
-			byte bootDescriptor[] = new byte[256];
+			byte bootDescriptor[] = new byte[16];
 			int endAddress = startAddress + totalLength;
 			integerToStream(bootDescriptor, 0, startAddress);
 			integerToStream(bootDescriptor, 4, endAddress);
@@ -718,8 +716,10 @@ public class updater implements Runnable {
 			crc32Block.reset();
 			crc32Block.update(bootDescriptor);
 
-			byte programBootDescriptor[] = new byte[5];
+			byte programBootDescriptor[] = new byte[9];
 			integerToStream(programBootDescriptor, 0,
+					bootDescriptor.length);
+			integerToStream(programBootDescriptor, 4,
 					(int) crc32Block.getValue());
 			System.out.println();
 			System.out.print("Update boot descriptor ... ");
