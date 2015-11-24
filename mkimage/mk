@@ -1,0 +1,27 @@
+#!/bin/bash
+BASE="/Applications/lpcxpresso_7.9.2_493/lpcxpresso"
+TOOLS="$BASE/tools/bin"
+BIN="$BASE/bin"
+APP_NAME="application/in16-bim112.axf"
+BOOT_NAME="bus-updater/Bus-Updater.axf"
+IMAGE_BIN_NAME="image.bin"
+
+app_version=`$TOOLS/arm-none-eabi-objdump -t "${APP_NAME}" |grep APP_VERSION|while read i j; do echo 0x${i}; done`
+
+APP_BIN_NAME=`basename "${APP_NAME}" .axf`.bin
+BOOT_BIN_NAME=`basename "${BOOT_NAME}" .axf`.bin
+
+"$TOOLS/arm-none-eabi-size" "${APP_NAME}"
+
+"$TOOLS/arm-none-eabi-objcopy" -O binary "${APP_NAME}" "${APP_BIN_NAME}"
+"$BIN/checksum" -p lpc1115 -d "${APP_BIN_NAME}"
+
+"$TOOLS/arm-none-eabi-objcopy" -O binary "${BOOT_NAME}" "${BOOT_BIN_NAME}"
+"$BIN/checksum" -p lpc1115 -d "${BOOT_BIN_NAME}"
+
+./mkimage -s 65536 -a ${APP_BIN_NAME} -b ${BOOT_BIN_NAME} -V $app_version "${IMAGE_BIN_NAME}"
+
+"$BIN/crt_emu_lpc11_13_nxp" -flash-load-partial "${IMAGE_BIN_NAME}" -g -2 -vendor=NXP -pLPC1115_303 -load-base=0x0000 -wire=winUSB -s250 -flash-driver=LPC11_12_13_64K_8K.cfx -x ./
+"$BIN/crt_emu_lpc11_13_nxp" -g -2 -vendor=NXP -pLPC1115_303 -wire=winUSB -s250 --reset hard
+
+
