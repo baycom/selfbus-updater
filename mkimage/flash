@@ -1,0 +1,7 @@
+#!/bin/bash
+BASE="/Applications/lpcxpresso_7.9.2_493/lpcxpresso"
+TOOLS="$BASE/tools/bin"
+BIN="$BASE/bin"
+IMAGE_BIN_NAME="image.bin"
+
+"$BIN/crt_emu_lpc11_13_nxp" -flash-load-partial "${IMAGE_BIN_NAME}" -g -2 -vendor=NXP -pLPC1115_303 -load-base=0x0000 -wire=winUSB -s250 -flash-driver=LPC11_12_13_64K_8K.cfx -x ./
